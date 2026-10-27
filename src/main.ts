@@ -66,20 +66,109 @@ type typeProductRanking = {
 
 type typeProductRankings = typeProductRanking[]
 
+type typeCustomerRanking = {
+    rank: number
+    user_id: number
+    username: string | null
+    full_name: string | null
+    email: string | null
+    orders_count: number
+    total_items: number
+    total_spent: number
+}
+
+type typeCustomerRankings = typeCustomerRanking[]
+
 const getProducts = async (): Promise<typeProducts> => {
     const response = await fetch('https://fakestoreapi.com/products')
     if (!response.ok) {
-    throw new Error(`Errore ${response.status} su /products`)
-}
+        throw new Error(`Errore ${response.status} su /products`)
+    }
     const data = await response.json()
     return data
+}
+
+const getTopCustomers = (
+    carts: typeCarts,
+    products: typeProducts,
+    users: typeUsers
+): typeCustomerRanking[] => {
+    const list: typeCustomerRanking[] = []
+
+    for (const cart of carts) {
+        let customer: typeCustomerRanking | undefined = undefined
+        for (const item of list) {
+            if (item.user_id === cart.userId) {
+                customer = item
+            }
+        }
+
+        if (customer === undefined) {
+            let username: string | null = null
+            let fullName: string | null = null
+            let email: string | null = null
+
+            for (const user of users) {
+                if (user.id === cart.userId) {
+                    username = user.username
+                    fullName = user.name.firstname + ' ' + user.name.lastname
+                    email = user.email
+                }
+            }
+
+            customer = {
+                rank: 0,
+                user_id: cart.userId,
+                username: username,
+                full_name: fullName,
+                email: email,
+                orders_count: 0,
+                total_items: 0,
+                total_spent: 0,
+            }
+            list.push(customer)
+        }
+
+        customer.orders_count = customer.orders_count + 1
+
+        for (const line of cart.products) {
+            for (const product of products) {
+                if (product.id === line.productId) {
+                    customer.total_items = customer.total_items + line.quantity
+                    customer.total_spent = customer.total_spent + product.price * line.quantity
+                }
+            }
+        }
+    }
+
+    for (const item of list) {
+        item.total_spent = Math.round(item.total_spent * 100) / 100
+    }
+
+    list.sort((a, b) => {
+        if (a.total_spent !== b.total_spent) {
+            return b.total_spent - a.total_spent
+        }
+        if (a.orders_count !== b.orders_count) {
+            return b.orders_count - a.orders_count
+        }
+        return a.user_id - b.user_id
+    })
+
+    const top3 = list.slice(0, 3)
+
+    for (let i = 0; i < top3.length; i++) {
+        top3[i].rank = i + 1
+    }
+
+    return top3
 }
 
 const getCarts = async (): Promise<typeCarts> => {
     const response = await fetch('https://fakestoreapi.com/carts')
     if (!response.ok) {
-    throw new Error(`Errore ${response.status} su /carts`)
-}
+        throw new Error(`Errore ${response.status} su /carts`)
+    }
     const data = await response.json()
     return data
 }
@@ -87,8 +176,8 @@ const getCarts = async (): Promise<typeCarts> => {
 const getUsers = async (): Promise<typeUsers> => {
     const response = await fetch('https://fakestoreapi.com/users')
     if (!response.ok) {
-    throw new Error(`Errore ${response.status} su /users`)
-}
+        throw new Error(`Errore ${response.status} su /users`)
+    }
     const data = await response.json()
     return data
 }
@@ -117,33 +206,53 @@ const main = async (): Promise<void> => {
         `Prodotti: ${products.length}, carrelli: ${carts.length}, utenti: ${users.length}`
     )
     const anchor = getAnchorDate(carts)
-const start = getLastMonthStart(anchor)
-const lastMonthCarts = getLastMonthCarts(carts, start, anchor)
+    const start = getLastMonthStart(anchor)
+    const lastMonthCarts = getLastMonthCarts(carts, start, anchor)
 
-console.log('Data di ancoraggio:', anchor.toISOString())
-console.log('Inizio ultimo mese:', start.toISOString())
-console.log('Carrelli all time:', carts.length, '- ultimo mese:', lastMonthCarts.length)
-const productsReport = {
-    report: 'top_products',
+    console.log('Data di ancoraggio:', anchor.toISOString())
+    console.log('Inizio ultimo mese:', start.toISOString())
+    console.log('Carrelli all time:', carts.length, '- ultimo mese:', lastMonthCarts.length)
+    const productsReport = {
+        report: 'top_products',
+        generated_at: new Date().toISOString(),
+        anchor_date: anchor.toISOString(),
+        periods: {
+            all_time: {
+                range: null,
+                ranking: getTopProducts(carts, products),
+            },
+            last_month: {
+                range: {
+                    start: start.toISOString(),
+                    end: anchor.toISOString(),
+                },
+                ranking: getTopProducts(lastMonthCarts, products),
+            },
+        },
+    }
+
+    console.log(JSON.stringify(productsReport, null, 2))
+
+    const customersReport = {
+    report: 'top_customers',
     generated_at: new Date().toISOString(),
     anchor_date: anchor.toISOString(),
     periods: {
         all_time: {
             range: null,
-            ranking: getTopProducts(carts, products),
+            ranking: getTopCustomers(carts, products, users),
         },
         last_month: {
             range: {
                 start: start.toISOString(),
                 end: anchor.toISOString(),
             },
-            ranking: getTopProducts(lastMonthCarts, products),
+            ranking: getTopCustomers(lastMonthCarts, products, users),
         },
     },
 }
-
-console.log(JSON.stringify(productsReport, null, 2))
 }
+
 
 type typeRange = {
     start: Date
