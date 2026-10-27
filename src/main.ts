@@ -81,6 +81,19 @@ const getUsers = async (): Promise<typeUsers> => {
     return data
 }
 
+const getAnchorDate = (carts: typeCarts): Date => {
+    let latest = new Date(carts[0].date)
+
+    for (const cart of carts) {
+        const current = new Date(cart.date)
+        if (current > latest) {
+            latest = current
+        }
+    }
+
+    return latest
+}
+
 const main = async (): Promise<void> => {
     const [products, carts, users] = await Promise.all([
         getProducts(),
@@ -91,9 +104,43 @@ const main = async (): Promise<void> => {
     console.log(
         `Prodotti: ${products.length}, carrelli: ${carts.length}, utenti: ${users.length}`
     )
+    const anchor = getAnchorDate(carts)
+const start = getLastMonthStart(anchor)
+const lastMonthCarts = getLastMonthCarts(carts, start, anchor)
+
+console.log('Data di ancoraggio:', anchor.toISOString())
+console.log('Inizio ultimo mese:', start.toISOString())
+console.log('Carrelli all time:', carts.length, '- ultimo mese:', lastMonthCarts.length)
 }
+
+type typeRange = {
+    start: Date
+    end: Date
+}
+
+const DAYS_IN_LAST_MONTH = 30
+const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 main().catch((error) => {
     console.error('Errore:', error instanceof Error ? error.message : error)
 })
+
+const getLastMonthStart = (anchor: Date): Date => {
+    const start = new Date(anchor)
+    start.setUTCDate(start.getUTCDate() - 30)
+    return start
+}
+
+const getLastMonthCarts = (carts: typeCarts, start: Date, end: Date): typeCarts => {
+    const result: typeCarts = []
+
+    for (const cart of carts) {
+        const date = new Date(cart.date)
+        if (date >= start && date <= end) {
+            result.push(cart)
+        }
+    }
+
+    return result
+}
 
