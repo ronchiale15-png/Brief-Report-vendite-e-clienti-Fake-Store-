@@ -251,6 +251,9 @@ const main = async (): Promise<void> => {
         },
     },
 }
+
+console.log(JSON.stringify(productsReport, null, 2))
+console.log(JSON.stringify(customersReport, null, 2))
 }
 
 
