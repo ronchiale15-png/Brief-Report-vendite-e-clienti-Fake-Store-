@@ -1,0 +1,15 @@
+   {
+     "name": "fakestore-report",
+     "version": "1.0.0",
+     "description": "Report top 3 prodotti e top 3 clienti da Fake Store API",
+     "type": "module",
+     "scripts": {
+       "start": "tsx src/main.ts",
+       "check": "tsc --noEmit"
+     },
+     "devDependencies": {
+       "@types/node": "...",
+       "tsx": "...",
+       "typescript": "..."
+     }
+   }
